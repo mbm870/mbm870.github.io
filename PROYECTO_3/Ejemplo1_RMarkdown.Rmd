@@ -1,0 +1,135 @@
+---
+title: "Ejemplo 1 con RMarkdown"
+author: "M. Benavent"
+date: "`r Sys.Date()`"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    source_code: embed
+    logo: logos/woman.png
+    favicon: logos/ucm_favicon.png
+    social: [ "twitter", "facebook", "menu" ]
+    navbar:
+      - { title: "Datasets", href: "https://www.ucm.es/la-universidad-en-cifras", align: left }    
+
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(DT)
+library(readr)   
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(plotly)
+
+rm(list=ls())
+datos_1 <- read_delim("datos_tratados.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+datos_1$CURSO <- factor(datos_1$CURSO)
+datos_1$CENTRO <- factor(datos_1$CENTRO)
+
+# Agrupamos los datos por curso
+grouped_data <- datos_1 %>%
+  group_by(CURSO) %>%
+  summarise(across(where(is.numeric), sum))
+
+datos_2_M <- select(grouped_data,CURSO,TOTAL_MUJERES)
+datos_2_H <- select(grouped_data,CURSO,TOTAL_HOMBRES)
+colnames(datos_2_M)[2] <-"TOTAL"
+colnames(datos_2_H)[2] <-"TOTAL"
+
+datos_2_M$GÉNERO <- rep('Mujer', times = nrow(datos_2_M))
+datos_2_H$GÉNERO <- rep('Hombre', times = nrow(datos_2_H))
+
+datos_3 <- bind_rows(datos_2_M,datos_2_H)
+
+```
+
+# Página 1
+## Columna 1
+### Tabla de datos 
+```{r}
+# Crear una tabla interactiva con DT
+tabla_interactiva  <- datatable(datos_1, options = list( pageLength = 25))
+tabla_interactiva
+```
+
+## Columna 2
+### Total de alumnos por curso
+```{r fig.width=10, fig.height=5}
+ggplot(datos_1, aes(x = CURSO, y = TOTAL)) +
+  geom_col() +
+  labs(title = "U.C.M.", x = "Curso", y = "Total de alumno/as.",
+  ) +
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1, size = 8))
+```
+
+
+# Página 2 {data-orientation=rows}
+
+## row 1
+
+### Cuadro de texto con comentarios {data-height=300}
+Podemos incluir texto que explique los resultados de los experimentos.
+
+1. __Paso 1__
+  Podemos incluir infomación del número de filas totales de la tabla.
+  Tenemos un total de `r nrow(df)` observaciones.
+2. __Paso 2:__
+  Podemos marcar texto importante usando  *cursiva*  o **negrita**.
+3. __Paso 3:__ 
+  Toda la documentación para escribir *bonito* la podéis encontrar en el enlace [enlace](https://rmarkdown.rstudio.com/authoring_basics.html).
+
+## row 2
+### Componente dinámico con ggplot + plotly
+```{r}
+g1 <-ggplot(datos_3, aes(x = CURSO, y = TOTAL, fill = GÉNERO)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Total de Alumnos",
+       x = "CURSO",
+       y = "Total") +
+  scale_fill_manual(values = c("Mujer" = "blue", "Hombre" = "red")) +
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1, size = 8))
+g2 <- ggplotly(g1)
+g2
+```
+
+
+## row 3
+
+### Componente estático con ggplot 
+
+```{R}
+datos_4 <- filter(datos_1, CENTRO == "MATEMATICAS" | CENTRO == "FISICAS")
+
+datos_4 $CURSO <- factor(datos_4 $CURSO)
+datos_4 $CENTRO <- factor(datos_4 $CENTRO)
+datos_4_M <- select(datos_4 ,CURSO,CENTRO,TOTAL_MUJERES)
+datos_4_H <- select(datos_4 ,CURSO,CENTRO,TOTAL_HOMBRES)
+
+colnames(datos_4_M)[3] <-"TOTAL"
+colnames(datos_4_H)[3] <-"TOTAL"
+
+datos_4_M$GÉNERO <- rep('Mujer', times = nrow(datos_4_M))
+datos_4_H$GÉNERO <- rep('Hombre', times = nrow(datos_4_H))
+
+datos_5 <- bind_rows(datos_4_M,datos_4_H)
+
+g1 <-ggplot(datos_5) +
+  geom_boxplot(aes(y=TOTAL, x = CENTRO, fill = GÉNERO) ) +
+  labs(title = "Distribución de las mujeres y hombres que estudian en la UCM",
+       subtitle = "Gráficos de cajas, (geom_boxplot).",
+       x = " ",
+       y = "Número de estudiantes \n ",
+       caption = "Fuente: El Centro de Inteligencia Institucional, UCM."
+  ) +
+  theme(axis.text.x = element_text(size = 10),
+        #arriba(top), izquierda (left), derecha (right)
+        legend.position = "top",
+  )
+g1
+```
+
